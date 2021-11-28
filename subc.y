@@ -52,25 +52,81 @@ ext_def
 		| type_specifier pointers ID '[' const_expr ']' ';'
 		| func_decl ';'
 		| type_specifier ';'
-		| func_decl compound_stmt
+		| func_decl
+		{
+			push_scope();
+			declare_scop(returnid, $1->returntype);		// make returnid for checking return type
+			pushstelist($1->formals);
+		}
+		compound_stmt
+		{
+			pop_scope();
+		}
 
 type_specifier
 		: TYPE
+		{
+			struct decl* typeptr = findglobaldecl(yytext);
+			check_is_type(typeptr);
+			$$ = typeptr;
+		}
 		| VOID
 		| struct_specifier
 
 struct_specifier
-		: STRUCT ID '{' def_list '}'
+		: STRUCT ID '{' 
+		{ push_scope(); }
+		def_list 
+		{
+			struct ste* fields = pop_scope();
+			declare_global($2, ($$ = makestructdecl(fields)));
+		}
+		'}'
 		| STRUCT ID
+		{
+			struct decl* structptr = findglobaldecl($2);
+			check_is_struct_type(structptr);
+			$$ = structptr;
+		}
 
 func_decl
 		: type_specifier pointers ID '(' ')'
 		| type_specifier pointers ID '(' VOID ')'
-		| type_specifier pointers ID '(' param_list ')'
+		| type_specifier pointers ID '(' 
+		{
+			struct decl* funcdecl = makefuncdecl();
+			declare_global($3, funcdecl);
+			push_scope();
+			if($2){
+				declare_scope(returnid, makeptrdecl($1));
+			}
+			else{
+				declare_scope(returnid, $1);
+			}
+			$<declptr>$ = funcdecl;		// becomes $5
+		}
+		param_list 
+		')'
+		{
+			struct ste* formals;
+			decl* funcdecl = $<declptr>5;
+			formals = pop_scope;
+			funcdecl->returntype = formals->decl;
+			funcdecl->formals = formals->prev;		// formals point returnid
+			$$ = funcdecl;
+		}
 
 pointers
 		: '*'
+		{
+			// return 1;
+			// $$ = 1;
+		}
 		| /* empty */
+		{
+			// return 0;
+			// $$ = 0;
+		}
 
 param_list  /* list of formal parameter declaration */
 		: param_decl
@@ -78,7 +134,23 @@ param_list  /* list of formal parameter declaration */
 
 param_decl  /* formal parameter declaration */
 		: type_specifier pointers ID
+		{
+			if($2){
+				declare_scope($3, makevardecl(makeptrdecl($1)));
+			}
+			else{
+				declare_scope($3, makevardecl($1));
+			}
+		}
 		| type_specifier pointers ID '[' const_expr ']'
+		{
+			if($2){
+				declare_scope($3, makeconstdecl(makearraydecl($5, makevardecl($1))));
+			}
+			else{
+				declare_scope($3, makeconstdecl(makearraydecl($5, makevardecl(makeptrdecl($1)))));
+			}
+		}
 
 def_list    /* list of definitions, definition can be type(struct), variable, function */
 		: def_list def
@@ -86,7 +158,23 @@ def_list    /* list of definitions, definition can be type(struct), variable, fu
 
 def
 		: type_specifier pointers ID ';'
+		{
+			if($2){
+				declare_scope($3, makevardecl(makeptrdecl($1)));
+			}
+			else{
+				declare_scope($3, makevardecl($1));
+			}
+		}
 		| type_specifier pointers ID '[' const_expr ']' ';'
+		{
+			if($2){
+				declare_scope($3, makeconstdecl(makearraydecl($5, makevardecl($1))));
+			}
+			else{
+				declare_scope($3, makeconstdecl(makearraydecl($5, makevardecl(makeptrdecl($1)))));
+			}
+		}
 		| type_specifier ';'
 		| func_decl ';'
 
@@ -105,6 +193,10 @@ stmt
 		| compound_stmt
 		| RETURN ';'
 		| RETURN expr ';'
+		{
+			// check return type
+			check_same_type(findcurrentdecl(returnid), $2);		// expr should return decl* typeptr
+		}
 		| ';'
 		| IF '(' expr ')' stmt %prec IFSP
 		| IF '(' expr ')' stmt ELSE stmt
