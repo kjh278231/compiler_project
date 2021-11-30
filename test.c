@@ -20,11 +20,6 @@ typedef struct id {
 	int		tokenType;
 } id;
 
-typedef struct nlist {
-	struct nlist* next;					// not used
-	id* data;
-} nlist;
-
 struct ste {
 	struct id*		name;
 	struct decl*	decl;
@@ -49,7 +44,7 @@ struct decl {
 };
 
 /* struct id and hashTable */
-static nlist* hashTable[HASH_TABLE_SIZE];
+static id* hashTable[HASH_TABLE_SIZE];
 
 void initHash();
 void nullHash();
@@ -89,6 +84,8 @@ void pushstelist(struct ste* stelist);
 void check_is_type(struct decl* typeptr);
 void check_is_struct_type(struct decl* structptr);
 void check_same_type(struct decl* typeptr1, struct decl* typeptr2);
+void check_is_func(struct decl* funcptr);
+void check_func_arg(struct decl* funcptr, struct decl* actual);
 
 void print() {
 	struct ste* steptr = scope_stack[current];
@@ -218,7 +215,7 @@ id* enter(int tokenType, char* name, int length) {
 	// if name exist in hashTable, return id*
 	int i = do_exist(name);
 	if (i != -1) {
-		return hashTable[i]->data;
+		return hashTable[i];
 	}
 
 	// get an empty node
@@ -228,11 +225,8 @@ id* enter(int tokenType, char* name, int length) {
 	id_ptr->name = malloc(length + 1);	// +1 for \0
 	strcpy(id_ptr->name, name);
 	id_ptr->tokenType = tokenType;
-	// insert new id in nlist
-	nlist* nl_ptr = malloc(sizeof(nlist));
-	nl_ptr->data = id_ptr;
 	// insert new nlist in hashTable
-	hashTable[i] = nl_ptr;
+	hashTable[i] = id_ptr;
 	return id_ptr;
 }
 
@@ -251,7 +245,7 @@ int do_exist(char* name)
 {	// search if name is already in the hashTable
 	for (int i = 0; i < HASH_TABLE_SIZE; i++) {
 		if (hashTable[i] != NULL) {
-			if (strcmp(hashTable[i]->data->name, name) == 0)
+			if (strcmp(hashTable[i]->name, name) == 0)
 				return i;
 		}
 	}
@@ -344,6 +338,20 @@ struct decl* findglobaldecl(struct id* name)
 		steptr = steptr->prev;
 	}
 	return steptr;
+}
+
+struct decl* findscopedecl(struct id* name)
+{	// search for name only in the current scope
+	// return NULL if not found
+	if(current == 0) return findcurrentdecl(name);
+	struct ste* steptr = scope_stack[current];
+	while (steptr != NULL && steptr->name != name && steptr != scope_stack[current - 1]) {
+		steptr = steptr->prev;
+	}
+	if(steptr == scope_stack[current - 1]){
+		return NULL;
+	}
+	else return steptr;
 }
 
 /* Implementation - makedecl */
@@ -448,13 +456,33 @@ void check_same_type(struct decl* typeptr1, struct decl* typeptr2)
 	}
 }
 
+void check_is_func(struct decl* funcptr)
+{	// check if funcptr is a pointer of function decl
+	if(funcptr->declclass != FUNC){
+		// error
+	}
+}
+
+void check_func_arg(struct decl* funcptr, struct decl* actual)
+{	// check parameter types corresponds to each other
+	struct ste* formal = funcptr->formals;
+	while(formal != NULL && actual != NULL){
+		// check_is_var(formal->decl)
+		check_same_type(formal->decl, actual->type);
+		formal = formal->prev;
+		actual = actual->next;
+	}
+	// number of parmeters do not match
+	if(formal != NULL || actual != NULL){
+		// error
+	}
+}
+
 /* not yet implemented */
 
 /* 
 TODOs
 0. test struct, pointer, function
 1. test push_score() and pop_score()
-2. change nlist
-3. need to implement when using declared functions
 
 */

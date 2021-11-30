@@ -244,6 +244,16 @@ unary
 		| CHAR_CONST
 		| STRING
 		| ID
+		{
+			struct id* idptr = enter($1);
+			// check if declared
+			struct decl* declptr = findscopedecl(idptr);
+			if(declptr == NULL){
+				// error - undeclared variable or function
+			}
+			// return decl* of ID
+			$$ = declptr;
+		}
 		| '-' unary	%prec '!'
 		| '!' unary
 		| unary INCOP
@@ -256,11 +266,29 @@ unary
 		| unary '.' ID
 		| unary STRUCTOP ID
 		| unary '(' args ')'
+		{
+			// check if function
+			check_is_func($1);
+			// parameter check
+			check_func_arg($1, $3);
+			$$ == $1->returntype;
+		}
 		| unary '(' ')'
 
 args    /* actual parameters(function arguments) transferred to function */
 		: expr
+		{
+			$$ = $1;
+		}
 		| args ',' expr
+		{
+			struct decl* declptr = $1;
+			while(declptr->next != NULL){
+				declptr = declptr->next;
+			}
+			declptr->next = $3;
+			$$ = $1;
+		}
     /*fill in here*/
     
 %%
