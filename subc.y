@@ -274,6 +274,15 @@ unary
 			$$ == $1->returntype;
 		}
 		| unary '(' ')'
+		{
+			// check if function
+			check_is_func($1);
+			// check if function has no parameter
+			if($1->formals != NULL){
+				// error
+			}
+			$$ == $1->returntype;
+		}
 
 args    /* actual parameters(function arguments) transferred to function */
 		: expr
