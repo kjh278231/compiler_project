@@ -301,6 +301,7 @@ unary
 			struct decl* declptr = findscopedecl(idptr);
 			if(declptr == NULL){
 				// error - undeclared variable or function
+				yyerror("not declared");
 			}
 			// return decl* of ID
 			$$ = declptr;
@@ -331,6 +332,7 @@ unary
 			// check if function has no parameter
 			if($1->formals != NULL){
 				// error
+				yyerror("actual args are not equal to formal args");
 			}
 			$$ == $1->returntype;
 		}
@@ -357,6 +359,6 @@ args    /* actual parameters(function arguments) transferred to function */
 
 int    yyerror (char* s)
 {
-	fprintf (stderr, "filename:%d: error:%s\n", read_line(), s);
+	fprintf (stderr, "%s:%d: error:%s\n", filename, read_line(), s);
 }
 

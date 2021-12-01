@@ -335,9 +335,11 @@ void check_is_struct_type(struct decl* structptr)
 {	// check if structptr is struct type decl
 	if (structptr == NULL) {	// undeclared name
 		// error
+		yyerror("incomplete type");
 	}
 	else if (structptr->typeclass != STRUCT) {	// is declared but not a name for struct
 		// error
+		yyerror("incomplete type");
 	}
 }
 

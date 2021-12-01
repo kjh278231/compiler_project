@@ -85,6 +85,8 @@ int read_line()
    return lineno;
 }
 
+char* filename;
+
 int main(int argc, char* argv[])
 {
    static char *keyword[] = { "int", NULL };
@@ -93,7 +95,10 @@ int main(int argc, char* argv[])
    for(i = 0; keyword[i] != NULL; i++)
       enter(tokentype[i], keyword[i], strlen(keyword[i]));
 
-   if(argc >= 2) yyin = fopen(argv[1], "r");
+   if(argc >= 2) {
+	   yyin = fopen(argv[1], "r");
+	   filename = strdup(argv[1]);
+   }
    else yyin = stdin;
    if(!yyin) {
       printf("Can't open input stream!\n");
