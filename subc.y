@@ -18,6 +18,16 @@ int    yyerror (char* s);
 	char	*stringVal;
 }
 
+/* yystacktype */
+%union yystacktype
+{
+	int				intval;
+	char*			stringval;
+	struct id*		idptr;
+	struct decl*	declptr;
+	struct ste*		steptr;
+}
+
 /* Precedences and Associativities */
 %left   ','
 %right  '='
@@ -49,7 +59,23 @@ ext_def_list
 
 ext_def
 		: type_specifier pointers ID ';'
+		{
+			if($2){
+				declare_scope($3, makevardecl(makeptrdecl($1)));
+			}
+			else{
+				declare_scope($3, makevardecl($1));
+			}
+		}
 		| type_specifier pointers ID '[' const_expr ']' ';'
+		{
+			if($2){
+				declare_scope($3, makeconstdecl(makearraydecl($5->value, makevardecl($1))));
+			}
+			else{
+				declare_scope($3, makeconstdecl(makearraydecl($5->value, makevardecl(makeptrdecl($1)))));
+			}
+		}
 		| func_decl ';'
 		| type_specifier ';'
 		| func_decl
@@ -71,7 +97,13 @@ type_specifier
 			$$ = typeptr;
 		}
 		| VOID
+		{
+			$$ = voidtype;
+		}
 		| struct_specifier
+		{
+			$$ = $1;
+		}
 
 struct_specifier
 		: STRUCT ID '{' 
@@ -120,12 +152,12 @@ pointers
 		: '*'
 		{
 			// return 1;
-			// $$ = 1;
+			$$ = 1;
 		}
 		| /* empty */
 		{
 			// return 0;
-			// $$ = 0;
+			$$ = 0;
 		}
 
 param_list  /* list of formal parameter declaration */
@@ -145,10 +177,10 @@ param_decl  /* formal parameter declaration */
 		| type_specifier pointers ID '[' const_expr ']'
 		{
 			if($2){
-				declare_scope($3, makeconstdecl(makearraydecl($5, makevardecl($1))));
+				declare_scope($3, makeconstdecl(makearraydecl($5->value, makevardecl($1))));
 			}
 			else{
-				declare_scope($3, makeconstdecl(makearraydecl($5, makevardecl(makeptrdecl($1)))));
+				declare_scope($3, makeconstdecl(makearraydecl($5->value, makevardecl(makeptrdecl($1)))));
 			}
 		}
 
@@ -169,10 +201,10 @@ def
 		| type_specifier pointers ID '[' const_expr ']' ';'
 		{
 			if($2){
-				declare_scope($3, makeconstdecl(makearraydecl($5, makevardecl($1))));
+				declare_scope($3, makeconstdecl(makearraydecl($5->value, makevardecl($1))));
 			}
 			else{
-				declare_scope($3, makeconstdecl(makearraydecl($5, makevardecl(makeptrdecl($1)))));
+				declare_scope($3, makeconstdecl(makearraydecl($5->value, makevardecl(makeptrdecl($1)))));
 			}
 		}
 		| type_specifier ';'
@@ -192,6 +224,10 @@ stmt
 		: expr ';'
 		| compound_stmt
 		| RETURN ';'
+		{
+			// check return type is void
+			check_same_type(findcurrentdecl(returnid), voidtype);
+		}
 		| RETURN expr ';'
 		{
 			// check return type
@@ -241,8 +277,23 @@ unary
 		: '(' expr ')'
 		| '(' unary ')' 
 		| INTEGER_CONST
+		{
+			// return decl of INTEGER_CONST
+			struct decl* declptr = makenumconstdecl(inttype, $1);
+			$$ = declptr;
+		}
 		| CHAR_CONST
+		{
+			// return decl of char type
+			struct decl* declptr = makeconstdecl(chartype);
+			$$ = declptr;
+		}
 		| STRING
+		{
+			// return decl of char* type
+			struct decl* declptr = makeconstdecl(makeptrdecl(chartype));
+			$$ = declptr;
+		}
 		| ID
 		{
 			struct id* idptr = enter($1);
@@ -306,6 +357,6 @@ args    /* actual parameters(function arguments) transferred to function */
 
 int    yyerror (char* s)
 {
-	fprintf (stderr, "%s\n", s);
+	fprintf (stderr, "filename:%d: error:%s\n", read_line(), s);
 }
 

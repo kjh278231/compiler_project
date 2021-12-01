@@ -16,31 +16,31 @@
 #define STRUCT	6
 
 typedef struct id {
-	char*	name;
+	char* name;
 	int		tokenType;
 } id;
 
 struct ste {
-	struct id*		name;
-	struct decl*	decl;
-	struct ste*		prev;
+	struct id* name;
+	struct decl* decl;
+	struct ste* prev;
 };
 
 struct decl {
 	int				declclass;		// VAR, CONST, FUNC, TYPE
-	struct decl*	type;			// VAR, CONST: pointer to its TYPE decl
+	struct decl* 	type;			// VAR, CONST: pointer to its TYPE decl
 	int				value;			// CONST: value of integer constant
 	float			real_value;		// CONST: value of float constant
-	struct ste*		formals;		// FUNC: pointer to formal argument list
-	struct decl*	returntype;		// FUNC: pointer to returrn TYPE decl
+	struct ste* 	formals;		// FUNC: pointer to formal argument list
+	struct decl* 	returntype;		// FUNC: pointer to returrn TYPE decl
 	int				typeclass;		// TYPE: type class: INT, CHAR, array, ptr, struct, ...
-	struct decl*	elementvar;		// TYPE (array) : ptr to element VAR decl
+	struct decl* 	elementvar;		// TYPE (array) : ptr to element VAR decl
 	int				num_index;		// TYPE (array) : number of elements
-	struct ste*		fieldlist;		// TYPE (struct) : ptr to field list
-	struct decl*	ptrto;			// TYPE (pointer) : type of the pointer
+	struct ste* 	fieldlist;		// TYPE (struct) : ptr to field list
+	struct decl* 	ptrto;			// TYPE (pointer) : type of the pointer
 	int				size;			// ALL : size in bytes
-	struct ste**	scope;			// VAR : scope when VAR declared
-	struct decl*	next;			// for list_of_variables declarations or parameter check of function call
+	struct ste** 	scope;			// VAR : scope when VAR declared
+	struct decl* 	next;			// for list_of_variables declarations or parameter check of function call
 };
 
 /* struct id and hashTable */
@@ -95,7 +95,7 @@ void print() {
 			printf("stack top of %d\n", stack_it);
 			stack_it--;
 		}
-		
+
 		printf("name : %s\n", steptr->name->name);
 
 		switch (steptr->decl->declclass) {
@@ -109,21 +109,21 @@ void print() {
 			break;
 		case(FUNC):
 			printf("declclass : FUNC\n");
-
+			printf("return type : %d\n\n", steptr->decl->returntype->typeclass);
 			break;
 		case(TYPE):
 			printf("declclass : TYPE\n");
-
+			printf("class : %d\n\n", steptr->decl->typeclass);
 			break;
 		default:
 			break;
 		}
-		
+
 		steptr = steptr->prev;
 	}
 }
 
-int main(){
+int main() {
 	initHash();
 	init_type();
 
@@ -132,27 +132,27 @@ int main(){
 	declare_scope(enter(ID, "a", 1), makevardecl(findcurrentdecl(enter(ID, "char", 4))));
 
 	// int b[10];
-	declare_scope(enter(ID, "b", 1), makeconstdecl(makearraydecl(makenumconstdecl(inttype, 10), makevardecl(findcurrentdecl(enter(ID, "int", 3))))));
+	declare_scope(enter(ID, "b", 1), makeconstdecl(makearraydecl(makenumconstdecl(inttype, 10)->value, makevardecl(findcurrentdecl(enter(ID, "int", 3))))));
 
 	// int* c;
 	declare_scope(enter(ID, "c", 1), makevardecl(makeptrdecl(findcurrentdecl(enter(ID, "int", 3)))));
 
 	// char* d[5];
-	declare_scope(enter(ID, "d", 1), makeconstdecl(makearraydecl(makenumconstdecl(inttype, 5), makevardecl(makeptrdecl(findcurrentdecl(enter(ID, "char", 4)))))));
+	declare_scope(enter(ID, "d", 1), makeconstdecl(makearraydecl(makenumconstdecl(inttype, 5)->value, makevardecl(makeptrdecl(findcurrentdecl(enter(ID, "char", 4)))))));
 
 	// struct temp { int x; int y[20]; } w;
 	// STRUCT ID {
 	push_scope();
 	// def list
 	declare_scope(enter(ID, "x", 1), makevardecl(findcurrentdecl(enter(ID, "int", 3))));
-	declare_scope(enter(ID, "y", 1), makeconstdecl(makearraydecl(makenumconstdecl(inttype, 20), makevardecl(findcurrentdecl(enter(ID, "int", 3))))));
+	declare_scope(enter(ID, "y", 1), makeconstdecl(makearraydecl(makenumconstdecl(inttype, 20)->value, makevardecl(findcurrentdecl(enter(ID, "int", 3))))));
 	// }
 	struct ste* fields = pop_scope();
 	declare_global(enter(ID, "temp", 4), makestructdecl(fields));
 	// type_specifier w ;
 	declare_scope(enter(ID, "w", 1), makevardecl(findglobaldecl(enter(ID, "temp", 4))));
 
-	/* 
+	/*
 	int foo(int x, int y){
 		int z, w;
 	}
@@ -263,7 +263,7 @@ struct ste* pop_scope() {
 	struct ste* res = scope_stack[current];		// pointer to return linked list
 	scope_stack[current] = NULL;
 	current--;
-	
+
 	// reverse linked list
 	struct ste* prev = NULL;
 	struct ste* next = res->prev;
@@ -273,7 +273,7 @@ struct ste* pop_scope() {
 		res = next;
 		next = res->prev;
 	}
-	return res;
+	return prev;
 }
 
 void init_type()
@@ -281,12 +281,12 @@ void init_type()
 	inttype = maketypedecl(INT);
 	chartype = maketypedecl(CHAR);
 	voidtype = maketypedecl(VOID);
-	
+
 	declare_global(enter(ID, "int", 3), inttype);
 	declare_global(enter(ID, "char", 4), chartype);
 	declare_global(enter(ID, "void", 4), voidtype);
 	returnid = enter(ID, "*return", 7);
-	
+
 }
 
 void declare_scope(struct id* name, struct decl* decl)
@@ -327,7 +327,7 @@ struct decl* findcurrentdecl(struct id* name)
 	while (steptr != NULL && steptr->name != name) {
 		steptr = steptr->prev;
 	}
-	return steptr;
+	return steptr->decl;
 }
 
 struct decl* findglobaldecl(struct id* name)
@@ -337,21 +337,21 @@ struct decl* findglobaldecl(struct id* name)
 	while (steptr != NULL && steptr->name != name) {
 		steptr = steptr->prev;
 	}
-	return steptr;
+	return steptr->decl;
 }
 
 struct decl* findscopedecl(struct id* name)
 {	// search for name only in the current scope
 	// return NULL if not found
-	if(current == 0) return findcurrentdecl(name);
+	if (current == 0) return findcurrentdecl(name);
 	struct ste* steptr = scope_stack[current];
 	while (steptr != NULL && steptr->name != name && steptr != scope_stack[current - 1]) {
 		steptr = steptr->prev;
 	}
-	if(steptr == scope_stack[current - 1]){
+	if (steptr == scope_stack[current - 1]) {
 		return NULL;
 	}
-	else return steptr;
+	else return steptr->decl;
 }
 
 /* Implementation - makedecl */
@@ -370,10 +370,10 @@ struct decl* makevardecl(struct decl* typeptr) {
 	return new_decl;
 }
 
-struct decl* makeconstdecl(struct decl* arrayptr) {
+struct decl* makeconstdecl(struct decl* typeptr) {
 	struct decl* new_decl = malloc(sizeof(struct decl));
 	new_decl->declclass = CONST;
-	new_decl->type = arrayptr;
+	new_decl->type = typeptr;
 	return new_decl;
 }
 
@@ -419,7 +419,7 @@ struct decl* makefuncdecl() {
 void pushstelist(struct ste* stelist)
 {	// declare_scope all variables in stelist
 	struct ste* steptr = stelist;
-	while(steptr != NULL){
+	while (steptr != NULL) {
 		declare_scope(steptr->name, steptr->decl);
 		steptr = steptr->prev;
 	}
@@ -428,29 +428,29 @@ void pushstelist(struct ste* stelist)
 /* Implementation - checker functions */
 void check_is_type(struct decl* typeptr)
 {	// check if typeptr points to type decl 
-	if(!typeptr->typeclass){
+	if (!typeptr->typeclass) {
 		// error
 	}
 }
 
 void check_is_struct_type(struct decl* structptr)
 {	// check if structptr is struct type decl
-	if(structptr == NULL){	// undeclared name
+	if (structptr == NULL) {	// undeclared name
 		// error
 	}
-	else if(structptr->typeclass != STRUCT){	// is declared but not a name for struct
+	else if (structptr->typeclass != STRUCT) {	// is declared but not a name for struct
 		// error
 	}
 }
 
 void check_same_type(struct decl* typeptr1, struct decl* typeptr2)
 {	// check if typeptr1 and typept2 are same type
-	if(typeptr1 != typeptr2){
+	if (typeptr1 != typeptr2) {
 		// in case of pointer -> always make new ptr decl
-		if(typeptr1->typeclass == POINTER && typeptr2->typeclass == POINTER){
+		if (typeptr1->typeclass == POINTER && typeptr2->typeclass == POINTER) {
 			check_same_type(typeptr1->ptrto, typeptr2->ptrto);
 		}
-		else{
+		else {
 			// error
 		}
 	}
@@ -458,7 +458,7 @@ void check_same_type(struct decl* typeptr1, struct decl* typeptr2)
 
 void check_is_func(struct decl* funcptr)
 {	// check if funcptr is a pointer of function decl
-	if(funcptr->declclass != FUNC){
+	if (funcptr->declclass != FUNC) {
 		// error
 	}
 }
@@ -466,23 +466,19 @@ void check_is_func(struct decl* funcptr)
 void check_func_arg(struct decl* funcptr, struct decl* actual)
 {	// check parameter types corresponds to each other
 	struct ste* formal = funcptr->formals;
-	while(formal != NULL && actual != NULL){
+	while (formal != NULL && actual != NULL) {
 		// check_is_var(formal->decl)
 		check_same_type(formal->decl, actual->type);
 		formal = formal->prev;
 		actual = actual->next;
 	}
 	// number of parmeters do not match
-	if(formal != NULL || actual != NULL){
+	if (formal != NULL || actual != NULL) {
 		// error
 	}
 }
 
-/* not yet implemented */
-
-/* 
+/*
 TODOs
-0. test struct, pointer, function
-1. test push_score() and pop_score()
 
 */
